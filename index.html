@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diapason Numérique</title>
+    <title>Diapason Électronique</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="controls">
-        <button id="toggleButton">Activer</button>
-        <div id="freqValue">--</div>
+    <div class="app-container">
+        <div class="main-content">
+            <h1>Diapason Électronique</h1>
+            <canvas id="tuner-canvas"></canvas>
+            <button id="tuner-toggle" class="switch-btn">
+                <span class="switch-label">Microphone</span>
+                <span class="switch-status">OFF</span>
+            </button>
+            <div id="frequency-display">Fréquence mesurée : <span id="frequency-value">0</span> Hz</div>
+        </div>
     </div>
-    <canvas id="spectrogram" width="600" height="300"></canvas>
     <script src="app.js"></script>
 </body>
 </html>

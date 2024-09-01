@@ -1,44 +1,50 @@
 body {
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
     margin: 0;
-    background-color: #f0f0f0;
+    font-family: Arial, sans-serif;
+    background-color: #e0f2f1; /* Fond clair */
+    color: #004d40; /* Texte foncé */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
 }
 
-#controls {
-    margin: 20px;
-}
-
-#startButton, #toggleButton {
-    background-color: #4CAF50; /* Couleur par défaut pour le bouton */
-    color: white;
-    border: none;
-    padding: 15px 32px;
+.app-container {
     text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 10px;
+}
+
+#tuner-canvas {
+    width: 100%;
+    height: 300px;
+    border: 1px solid #004d40;
+    margin-bottom: 20px;
+}
+
+.switch-btn {
+    background-color: #b2dfdb; /* Couleur claire pour le bouton au repos */
+    color: #004d40; /* Texte foncé */
+    border: none;
+    border-radius: 20px;
+    padding: 10px 20px;
     cursor: pointer;
-    border-radius: 5px;
-    transition: background-color 0.3s;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
 }
 
-#toggleButton.active {
-    background-color: #FF9800; /* Couleur lorsqu'il est activé */
+.switch-btn.active {
+    background-color: #004d40; /* Couleur foncée lorsque activé */
+    color: #b2dfdb; /* Texte clair */
 }
 
-#freqValue {
-    font-size: 24px;
-    margin: 20px;
+.switch-status {
+    font-weight: bold;
 }
 
-#spectrogram {
-    border: 1px solid #ccc;
-    background-color: #fff;
-    margin-top: 20px;
+#frequency-display {
+    font-size: 20px;
+    font-weight: bold;
 }

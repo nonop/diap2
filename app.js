@@ -1,128 +1,115 @@
-let audioContext;
-let analyser;
-let microphone;
-let bufferLength;
-let dataArray;
-let isActive = false;
+document.addEventListener('DOMContentLoaded', function () {
+    const canvas = document.getElementById('tuner-canvas');
+    const ctx = canvas.getContext('2d');
+    const frequencyDisplay = document.getElementById('frequency-value');
+    const toggleButton = document.getElementById('tuner-toggle');
 
-document.getElementById('toggleButton').addEventListener('click', function() {
-    if (isActive) {
-        stopAudio();
-        this.classList.remove('active');
-        this.textContent = 'Activer';
-    } else {
-        startAudio();
-        this.classList.add('active');
-        this.textContent = 'Désactiver';
-    }
-    isActive = !isActive;
-});
+    let audioContext;
+    let analyser;
+    let microphone;
+    let isMicActive = false;
 
-function startAudio() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
-
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(function(stream) {
-                microphone = audioContext.createMediaStreamSource(stream);
-                microphone.connect(analyser);
-                console.log("Microphone connecté.");
-                requestAnimationFrame(updateFrequency);
-                requestAnimationFrame(drawSpectrogram);
-            })
-            .catch(function(err) {
-                console.error('Erreur de capture audio:', err);
-            });
-    }
-}
-
-function stopAudio() {
-    if (audioContext) {
-        microphone.disconnect();
-        analyser.disconnect();
-        audioContext.close();
-        audioContext = null;
-        console.log("Audio arrêté.");
-    }
-}
-
-function getFrequencyData() {
-    analyser.getByteFrequencyData(dataArray);
-    return dataArray;
-}
-
-function getDominantFrequency() {
-    const data = getFrequencyData();
-    let maxIndex = 0;
-    let maxValue = 0;
-
-    for (let i = 0; i < data.length; i++) {
-        if (data[i] > maxValue) {
-            maxValue = data[i];
-            maxIndex = i;
+    // Fonction pour démarrer le microphone
+    async function startMicrophone() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        microphone = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        microphone.connect(analyser);
+
+        analyser.fftSize = 4096; // Augmenter la taille pour une meilleure résolution
+        analyser.smoothingTimeConstant = 0.1; // Ajuster le lissage
+
+        drawSpectrum();
     }
 
-    let nyquist = audioContext.sampleRate / 2;
-    let frequency = maxIndex * nyquist / data.length;
-    
-    return frequency;
-}
-
-let frequencyHistory = [];
-const SMOOTHING_FACTOR = 5;
-
-function smoothFrequency(frequency) {
-    frequencyHistory.push(frequency);
-    if (frequencyHistory.length > SMOOTHING_FACTOR) {
-        frequencyHistory.shift();
-    }
-    const sum = frequencyHistory.reduce((a, b) => a + b, 0);
-    return sum / frequencyHistory.length;
-}
-
-function updateFrequency() {
-    if (!analyser) return;
-
-    let frequency = getDominantFrequency();
-    if (frequency > 0) {
-        let smoothedFrequency = smoothFrequency(frequency);
-        document.getElementById('freqValue').innerText = smoothedFrequency.toFixed(2);
-    } else {
-        document.getElementById('freqValue').innerText = "--";
+    // Fonction pour arrêter le microphone
+    function stopMicrophone() {
+        if (microphone) {
+            microphone.disconnect();
+            microphone = null;
+        }
+        if (audioContext) {
+            audioContext.close();
+            audioContext = null;
+        }
+        if (analyser) {
+            analyser.disconnect();
+            analyser = null;
+        }
+        isMicActive = false;
+        frequencyDisplay.textContent = '0';
+        toggleButton.classList.remove('active');
+        toggleButton.querySelector('.switch-status').textContent = 'OFF';
     }
 
-    requestAnimationFrame(updateFrequency);
-}
+    // Fonction pour dessiner le graphique du spectre
+    function drawSpectrum() {
+        if (!analyser) return;
 
-let canvas = document.getElementById('spectrogram');
-let canvasContext = canvas.getContext('2d');
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
 
-function drawSpectrogram() {
-    if (!analyser || !canvasContext) return;
+        analyser.getByteFrequencyData(dataArray);
 
-    analyser.getByteFrequencyData(dataArray);
+        const width = canvas.width;
+        const height = canvas.height;
 
-    canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, width, height);
 
-    let barWidth = (canvas.width / bufferLength) * 2.5;
-    let barHeight;
-    let x = 0;
+        const barWidth = (width / bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
 
-    for (let i = 0; i < bufferLength; i++) {
-        barHeight = dataArray[i] / 2;
-        canvasContext.fillStyle = 'rgb(' + (barHeight + 100) + ',50,50)';
-        canvasContext.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight);
-        x += barWidth + 1;
+        for (let i = 0; i < bufferLength; i++) {
+            barHeight = dataArray[i];
+            ctx.fillStyle = '#004d40';
+            ctx.fillRect(x, height - barHeight / 2, barWidth, barHeight / 2);
+            x += barWidth + 1;
+        }
+
+        requestAnimationFrame(drawSpectrum);
+
+        const frequency = getFrequency();
+        frequencyDisplay.textContent = frequency.toFixed(2);
     }
 
-    requestAnimationFrame(drawSpectrogram);
-}
+    // Fonction pour obtenir la fréquence
+    function getFrequency() {
+        if (!analyser) return 0;
 
-if (!canvas || !canvasContext) {
-    console.error('Erreur: Canvas non trouvé ou contexte non disponible.');
-}
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyser.getByteFrequencyData(dataArray);
+
+        let max = 0;
+        let index = 0;
+
+        for (let i = 0; i < bufferLength; i++) {
+            if (dataArray[i] > max) {
+                max = dataArray[i];
+                index = i;
+            }
+        }
+
+        const nyquist = audioContext.sampleRate / 2;
+        const frequency = index * nyquist / bufferLength;
+
+        return frequency;
+    }
+
+    // Gestion des événements des boutons
+    toggleButton.addEventListener('click', () => {
+        if (isMicActive) {
+            stopMicrophone();
+        } else {
+            startMicrophone();
+            toggleButton.classList.add('active');
+            toggleButton.querySelector('.switch-status').textContent = 'ON';
+            isMicActive = true;
+        }
+    });
+});
