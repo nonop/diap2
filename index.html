@@ -7,16 +7,10 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <div class="main-content">
-            <h1>Diapason Électronique</h1>
-            <canvas id="tuner-canvas"></canvas>
-            <button id="tuner-toggle" class="switch-btn">
-                <span class="switch-label">Microphone</span>
-                <span class="switch-status">OFF</span>
-            </button>
-            <div id="frequency-display">Fréquence mesurée : <span id="frequency-value">0</span> Hz</div>
-        </div>
+    <div class="container">
+        <h1>Diapason Électronique</h1>
+        <button id="start-button">Démarrer le Microphone</button>
+        <div id="frequency-display">Fréquence : -- Hz</div>
     </div>
     <script src="app.js"></script>
 </body>

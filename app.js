@@ -1,53 +1,33 @@
-document.addEventListener('DOMContentLoaded', function () {
-    const canvas = document.getElementById('tuner-canvas');
-    const ctx = canvas.getContext('2d');
-    const frequencyDisplay = document.getElementById('frequency-value');
-    const toggleButton = document.getElementById('tuner-toggle');
+document.addEventListener('DOMContentLoaded', () => {
+    const frequencyDisplay = document.getElementById('frequency-display');
+    const startButton = document.getElementById('start-button');
 
     let audioContext;
     let analyser;
     let microphone;
-    let isMicActive = false;
 
-    // Fonction pour démarrer le microphone
-    async function startMicrophone() {
+    startButton.addEventListener('click', async () => {
         if (!audioContext) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        microphone = audioContext.createMediaStreamSource(stream);
-        analyser = audioContext.createAnalyser();
-        microphone.connect(analyser);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            microphone = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser();
+            microphone.connect(analyser);
 
-        analyser.fftSize = 4096; // Augmenter la taille pour une meilleure résolution
-        analyser.smoothingTimeConstant = 0.1; // Ajuster le lissage
+            analyser.fftSize = 8192; // Taille de la FFT augmentée pour plus de précision
+            analyser.smoothingTimeConstant = 0.3; // Temps de lissage
 
-        drawSpectrum();
-    }
-
-    // Fonction pour arrêter le microphone
-    function stopMicrophone() {
-        if (microphone) {
-            microphone.disconnect();
-            microphone = null;
+            measureFrequency();
+        } catch (err) {
+            console.error('Erreur du microphone:', err);
+            alert("Impossible d'accéder au microphone. Veuillez autoriser l'accès.");
         }
-        if (audioContext) {
-            audioContext.close();
-            audioContext = null;
-        }
-        if (analyser) {
-            analyser.disconnect();
-            analyser = null;
-        }
-        isMicActive = false;
-        frequencyDisplay.textContent = '0';
-        toggleButton.classList.remove('active');
-        toggleButton.querySelector('.switch-status').textContent = 'OFF';
-    }
+    });
 
-    // Fonction pour dessiner le graphique du spectre
-    function drawSpectrum() {
+    function measureFrequency() {
         if (!analyser) return;
 
         const bufferLength = analyser.frequencyBinCount;
@@ -55,61 +35,65 @@ document.addEventListener('DOMContentLoaded', function () {
 
         analyser.getByteFrequencyData(dataArray);
 
-        const width = canvas.width;
-        const height = canvas.height;
+        const frequency = getFundamentalFrequency(dataArray, audioContext.sampleRate, analyser.fftSize);
+        frequencyDisplay.textContent = `Fréquence : ${frequency.toFixed(2)} Hz`;
 
-        ctx.clearRect(0, 0, width, height);
-
-        const barWidth = (width / bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-            barHeight = dataArray[i];
-            ctx.fillStyle = '#004d40';
-            ctx.fillRect(x, height - barHeight / 2, barWidth, barHeight / 2);
-            x += barWidth + 1;
-        }
-
-        requestAnimationFrame(drawSpectrum);
-
-        const frequency = getFrequency();
-        frequencyDisplay.textContent = frequency.toFixed(2);
+        requestAnimationFrame(measureFrequency);
     }
 
-    // Fonction pour obtenir la fréquence
-    function getFrequency() {
-        if (!analyser) return 0;
+    function getFundamentalFrequency(dataArray, sampleRate, fftSize) {
+        const nyquist = sampleRate / 2;
+        const binSize = nyquist / (fftSize / 2);
+        const spectrum = new Float32Array(dataArray.length);
 
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        analyser.getByteFrequencyData(dataArray);
+        for (let i = 0; i < dataArray.length; i++) {
+            spectrum[i] = dataArray[i] / 255;
+        }
 
-        let max = 0;
-        let index = 0;
+        const peakIndex = findPeak(spectrum);
+        const preciseFrequency = interpolateFrequency(spectrum, peakIndex, binSize);
 
-        for (let i = 0; i < bufferLength; i++) {
-            if (dataArray[i] > max) {
-                max = dataArray[i];
-                index = i;
+        return preciseFrequency;
+    }
+
+    function findPeak(spectrum) {
+        let maxIndex = 0;
+        let maxValue = 0;
+
+        for (let i = 1; i < spectrum.length - 1; i++) {
+            if (spectrum[i] > spectrum[i - 1] && spectrum[i] > spectrum[i + 1]) {
+                if (spectrum[i] > maxValue) {
+                    maxValue = spectrum[i];
+                    maxIndex = i;
+                }
             }
         }
 
-        const nyquist = audioContext.sampleRate / 2;
-        const frequency = index * nyquist / bufferLength;
-
-        return frequency;
+        return maxIndex;
     }
 
-    // Gestion des événements des boutons
-    toggleButton.addEventListener('click', () => {
-        if (isMicActive) {
-            stopMicrophone();
-        } else {
-            startMicrophone();
-            toggleButton.classList.add('active');
-            toggleButton.querySelector('.switch-status').textContent = 'ON';
-            isMicActive = true;
+    function interpolateFrequency(spectrum, peakIndex, binSize) {
+        if (peakIndex <= 0 || peakIndex >= spectrum.length - 1) {
+            return peakIndex * binSize;
+        }
+
+        const x0 = spectrum[peakIndex - 1];
+        const x1 = spectrum[peakIndex];
+        const x2 = spectrum[peakIndex + 1];
+
+        const a = (x0 - 2 * x1 + x2) / 2;
+        const b = (x2 - x0) / 2;
+        const peak = peakIndex + b / (2 * a);
+
+        return peak * binSize;
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (microphone) {
+            microphone.disconnect();
+        }
+        if (audioContext) {
+            audioContext.close();
         }
     });
 });

@@ -1,50 +1,37 @@
 body {
-    margin: 0;
     font-family: Arial, sans-serif;
-    background-color: #e0f2f1; /* Fond clair */
-    color: #004d40; /* Texte foncé */
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
 }
 
-.app-container {
+.container {
     text-align: center;
 }
 
-#tuner-canvas {
-    width: 100%;
-    height: 300px;
-    border: 1px solid #004d40;
+h1 {
     margin-bottom: 20px;
+    font-size: 24px;
 }
 
-.switch-btn {
-    background-color: #b2dfdb; /* Couleur claire pour le bouton au repos */
-    color: #004d40; /* Texte foncé */
-    border: none;
-    border-radius: 20px;
+button {
     padding: 10px 20px;
-    cursor: pointer;
     font-size: 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    position: relative;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
 }
 
-.switch-btn.active {
-    background-color: #004d40; /* Couleur foncée lorsque activé */
-    color: #b2dfdb; /* Texte clair */
-}
-
-.switch-status {
-    font-weight: bold;
+button:hover {
+    background-color: #45a049;
 }
 
 #frequency-display {
-    font-size: 20px;
-    font-weight: bold;
+    margin-top: 20px;
+    font-size: 24px;
 }
