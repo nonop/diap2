@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diapason Numérique</title>
+</head>
+<body>
+    <h1>Fréquence détectée : <span id="freqValue">--</span> Hz</h1>
+
+    <script>
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let analyser = audioContext.createAnalyser();
+        let microphone;
+        let javascriptNode;
+
+        // Augmentation de la taille de la FFT pour plus de précision
+        analyser.fftSize = 4096;
+
+        // Stocker les dernières fréquences pour faire du lissage
+        let previousFrequencies = [];
+
+        // Fonction de calcul de l'autocorrélation pour détecter la fréquence fondamentale
+        function autoCorrelate(buffer, sampleRate) {
+            let SIZE = buffer.length;
+            let MAX_SAMPLES = Math.floor(SIZE / 2);
+            let bestOffset = -1;
+            let bestCorrelation = 0;
+            let rms = 0;
+
+            for (let i = 0; i < SIZE; i++) {
+                let val = buffer[i];
+                rms += val * val;
+            }
+            rms = Math.sqrt(rms / SIZE);
+            if (rms < 0.01) return -1; // Signal trop faible
+
+            let lastCorrelation = 1;
+            for (let offset = 0; offset < MAX_SAMPLES; offset++) {
+                let correlation = 0;
+
+                for (let i = 0; i < MAX_SAMPLES; i++) {
+                    correlation += Math.abs((buffer[i]) - (buffer[i + offset]));
+                }
+                correlation = 1 - (correlation / MAX_SAMPLES);
+
+                if (correlation > bestCorrelation && correlation > 0.9) {
+                    bestCorrelation = correlation;
+                    bestOffset = offset;
+                } else if (correlation < lastCorrelation) {
+                    break;
+                }
+                lastCorrelation = correlation;
+            }
+
+            if (bestCorrelation > 0.01) {
+                return sampleRate / bestOffset;
+            }
+            return -1;
+        }
+
+        // Fonction pour calculer le RMS (Root Mean Square) du signal
+        function calculateRMS(buffer) {
+            let sum = 0;
+            for (let i = 0; i < buffer.length; i++) {
+                sum += buffer[i] * buffer[i];
+            }
+            return Math.sqrt(sum / buffer.length);
+        }
+
+        // Fonction de lissage des fréquences détectées
+        function smoothFrequency(newFrequency) {
+            previousFrequencies.push(newFrequency);
+            if (previousFrequencies.length > 5) {  // Utiliser les 5 dernières valeurs
+                previousFrequencies.shift();  // Supprimer la plus ancienne valeur
+            }
+
+            let sum = previousFrequencies.reduce((a, b) => a + b, 0);
+            return sum / previousFrequencies.length;
+        }
+
+        // Application d'un filtre passe-bande pour réduire le bruit
+        let filter = audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 440;  // Centré sur 440 Hz (A4)
+        filter.Q.value = 10;  // Réglage de la largeur de la bande passante
+
+        // Fonction d'initialisation pour accéder au microphone
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function (stream) {
+                microphone = audioContext.createMediaStreamSource(stream);
+                javascriptNode = audioContext.createScriptProcessor(1024, 1, 1);
+
+                // Connexion des noeuds audio
+                microphone.connect(filter);
+                filter.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+
+                // Processus de détection de la fréquence
+                javascriptNode.onaudioprocess = function () {
+                    let bufferLength = analyser.fftSize;
+                    let dataArray = new Float32Array(bufferLength);
+                    analyser.getFloatTimeDomainData(dataArray);
+
+                    let rms = calculateRMS(dataArray);
+                    if (rms < 0.01) {
+                        document.getElementById('freqValue').innerText = "--";  // Signal trop faible
+                        return;
+                    }
+
+                    let frequency = autoCorrelate(dataArray, audioContext.sampleRate);
+                    if (frequency !== -1) {
+                        let smoothedFrequency = smoothFrequency(frequency);
+                        document.getElementById('freqValue').innerText = smoothedFrequency.toFixed(2);
+                    }
+                };
+            })
+            .catch(function (err) {
+                console.error('Erreur de capture audio : ', err);
+            });
+    </script>
+</body>
+</html>
